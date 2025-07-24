@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  //output   = "../generated/prisma"
+}
+
+//db link
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+enum Role {
+  ADMIN
+  RESIDENT
+}
+
+enum SlotTime {
+  S_09_10   // 09:00–10:00
+  S_10_11   // 10:00–11:00
+  S_11_12   // 11:00–12:00
+  S_14_15   // 14:00–15:00
+  S_15_16   // 15:00–16:00
+}
+
+model User {
+  id          Int            @id @default(autoincrement())
+  name        String
+  email       String         @unique
+  password    String
+  role        Role
+  apartmentNo String?
+  complaints  Complaint[]
+  bills       Bill[]
+  visitorLogs Visitor[]
+  bookings    Booking[]
+  announcements Announcement[]
+}
+
+model Complaint {
+  id        Int      @id @default(autoincrement())
+  title     String
+  description   String
+  status    String   @default("Pending")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+}
+
+model Bill {
+  id        Int      @id @default(autoincrement())
+  title     String
+  amount    Float
+  dueDate   DateTime
+  status    String   @default("unpaid")
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+}
+
+
+model Visitor {
+  id        Int      @id @default(autoincrement())
+  name      String
+  reason    String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+}
+
+model Facility {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  capacity    Int       // max bookings per slot
+  bookings    Booking[]
+}
+
+model Booking {
+  id          Int       @id @default(autoincrement())
+  facility    Facility  @relation(fields: [facilityId], references: [id])
+  facilityId  Int
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+  date        DateTime
+  slot        SlotTime
+  createdAt   DateTime  @default(now())
+
+  @@unique([facilityId, date, slot, userId])
+  @@index([facilityId])
+  @@index([userId])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+  creator     User     @relation(fields: [creatorId], references: [id])
+  creatorId   Int
+}
+
