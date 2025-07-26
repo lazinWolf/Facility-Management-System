@@ -1,0 +1,676 @@
+import React from 'react';
+import { 
+  ShieldCheckIcon, 
+  WrenchScrewdriverIcon, 
+  DocumentTextIcon, 
+  UsersIcon, 
+  BuildingOffice2Icon, 
+  MegaphoneIcon 
+} from '@heroicons/react/24/outline';
+
+// CSS 
+const styles = `
+/* General Body Styles */
+.home-container {
+  background-color: #ffffff;
+  color: #1f2937;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Container */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  z-index: 50;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.logo {
+  height: 3rem; /* h-10 */
+  width: auto;
+}
+
+.main-nav {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .main-nav {
+    display: flex;
+    align-items: center;
+  }
+  .main-nav a {
+    margin-left: 1.5rem; /* space-x-6 */
+  }
+}
+
+.main-nav a {
+  color: #4b5563; /* text-gray-600 */
+  transition: color 0.2s ease-in-out;
+  text-decoration: none;
+}
+
+.main-nav a:hover {
+  color: #4f46e5; /* hover:text-indigo-600 */
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* space-x-2 */
+}
+
+/* Main Content */
+.main-content {
+  padding-top: 5rem; /* pt-20 to offset fixed header */
+}
+
+/* Buttons */
+.btn {
+  padding: 0.625rem 1.25rem; /* px-5 py-2.5 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  border-radius: 0.5rem; /* rounded-lg */
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-login {
+  color: #4f46e5; /* text-indigo-600 */
+  background-color: #ffffff; /* bg-white */
+  border: 1px solid #d1d5db; /* border-gray-300 */
+}
+
+.btn-login:hover {
+  background-color: #f3f4f6; /* hover:bg-gray-100 */
+}
+
+.btn-register {
+  color: #ffffff;
+  background-color: #4f46e5; /* bg-indigo-600 */
+  border: 1px solid transparent;
+}
+
+.btn-register:hover {
+  background-color: #4338ca; /* hover:bg-indigo-700 */
+}
+
+.btn-primary {
+  padding: 0.75rem 2rem;
+  background-color: #4f46e5;
+  color: white;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transform: scale(1);
+}
+
+.btn-primary:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+
+.btn-secondary {
+  padding: 0.75rem 2rem;
+  background-color: #ffffff;
+  color: #4f46e5;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  transform: scale(1);
+}
+
+.btn-secondary:hover {
+  background-color: #f3f4f6;
+  transform: scale(1.05);
+}
+
+/* Hero Section */
+.hero-section {
+  background-color: #f9fafb; /* bg-gray-50 */
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+  .hero-section {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+}
+
+.hero-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .hero-container {
+    flex-direction: row;
+  }
+}
+
+.hero-text {
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .hero-text {
+    width: 50%;
+    text-align: left;
+  }
+}
+
+.hero-text h1 {
+  font-size: 2.25rem; /* text-4xl */
+  font-weight: 800; /* font-extrabold */
+  color: #111827; /* text-gray-900 */
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .hero-text h1 {
+    font-size: 3rem; /* md:text-5xl */
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-text h1 {
+    font-size: 3.75rem; /* lg:text-6xl */
+  }
+}
+
+.hero-text p {
+  font-size: 1.125rem; /* text-lg */
+  color: #4b5563; /* text-gray-600 */
+  margin-bottom: 2rem;
+  max-width: 42rem; /* max-w-xl */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 768px) {
+  .hero-text p {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .hero-buttons {
+    justify-content: flex-start;
+  }
+}
+
+.hero-image-container {
+  margin-top: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .hero-image-container {
+    width: 50%;
+    margin-top: 0;
+  }
+}
+
+.hero-image {
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); /* shadow-2xl */
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+
+/* Features Section */
+.features-section {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+  .features-section {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.section-header h2 {
+  font-size: 1.875rem; /* text-3xl */
+  font-weight: 700; /* font-bold */
+  color: #111827;
+}
+
+@media (min-width: 768px) {
+  .section-header h2 {
+    font-size: 2.25rem; /* md:text-4xl */
+  }
+}
+
+.section-header p {
+  font-size: 1.125rem; /* text-lg */
+  color: #4b5563; /* text-gray-600 */
+  margin-top: 0.5rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+@media (min-width: 640px) {
+  .features-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .features-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.feature-card {
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.feature-card:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* hover:shadow-lg */
+}
+
+.feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background-color: #e0e7ff; /* bg-indigo-100 */
+  border-radius: 9999px; /* rounded-full */
+  margin-bottom: 1rem;
+}
+
+.feature-icon-svg {
+  width: 2rem; /* w-8 */
+  height: 2rem; /* h-8 */
+  color: #6366f1; /* text-indigo-500 */
+}
+
+.feature-card h3 {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+  margin-bottom: 0.5rem;
+}
+
+.feature-card p {
+  color: #4b5563;
+}
+
+/* About Us Section */
+.about-section {
+  background-color: #f9fafb;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+  .about-section {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+}
+
+.about-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .about-container {
+    flex-direction: row;
+  }
+}
+
+.about-image-container {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .about-image-container {
+    width: 50%;
+  }
+}
+
+.about-image {
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); /* shadow-xl */
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.about-text {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .about-text {
+    width: 50%;
+  }
+}
+
+.about-text h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.about-text p {
+  color: #374151; /* text-gray-700 */
+  line-height: 1.625; /* leading-relaxed */
+  margin-bottom: 1rem;
+}
+
+/* Footer */
+.footer {
+  background-color: #1f2937; /* bg-gray-800 */
+  color: #d1d5db; /* text-gray-300 */
+}
+
+.footer-grid {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .footer-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.footer-col h4 {
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 1rem;
+}
+
+.footer-col p, .footer-col li {
+  font-size: 0.875rem;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-col li {
+  margin-bottom: 0.5rem;
+}
+
+.footer-col a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.footer-col a:hover {
+  color: #ffffff;
+}
+
+.footer-col p a {
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  border-top: 1px solid #374151; /* border-gray-700 */
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+`;
+
+export default function App() {
+  const features = [
+    {
+      icon: <WrenchScrewdriverIcon className="feature-icon-svg" />,
+      title: 'Complaint Management',
+      description: 'Easily raise and track maintenance requests. Get timely updates and resolutions.',
+    },
+    {
+      icon: <DocumentTextIcon className="feature-icon-svg" />,
+      title: 'Automated Billing',
+      description: 'View and pay your society bills online. Access payment history anytime.',
+    },
+    {
+      icon: <UsersIcon className="feature-icon-svg" />,
+      title: 'Visitor Management',
+      description: 'Pre-approve guests and get instant notifications for a secure and welcoming community.',
+    },
+    {
+      icon: <BuildingOffice2Icon className="feature-icon-svg" />,
+      title: 'Facility Booking',
+      description: 'Book shared amenities like clubhouses, pools, and sports courts with ease.',
+    },
+    {
+      icon: <MegaphoneIcon className="feature-icon-svg" />,
+      title: 'Announcements',
+      description: 'Stay informed with important notices and updates from the management.',
+    },
+    {
+      icon: <ShieldCheckIcon className="feature-icon-svg" />,
+      title: 'Enhanced Security',
+      description: 'Integrated security features to ensure a safe living environment for all residents.',
+    },
+  ];
+
+  return (
+    <div className="home-container">
+      <style>{styles}</style>
+      {/* Header */}
+      <header className="header">
+        <div className="container header-container">
+          <div className="logo-container">
+            <img 
+              src="/logo.png" 
+              alt="Facility Management System Logo" 
+              className="logo"
+            />
+          </div>
+          <nav className="main-nav">
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+            <a href="#contact">Contact</a>
+          </nav>
+          <div className="header-buttons">
+             <a href="/login" className="btn btn-login">
+                Log In
+            </a>
+            <a href="/register" className="btn btn-register">
+                Register
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <main className="main-content">
+        {/* Hero Section */}
+        <section className="hero-section">
+          <div className="container hero-container">
+            <div className="hero-text">
+              <h1>Streamline Your Apartment Living</h1>
+              <p>
+                Manage complaints, bills, visitors, and facilities—all in one place. Welcome to the future of convenient and connected community living.
+              </p>
+              <div className="hero-buttons">
+                <a href="/register" className="btn btn-primary">
+                  Get Started
+                </a>
+                <a href="#features" className="btn btn-secondary">
+                  Learn More
+                </a>
+              </div>
+            </div>
+            <div className="hero-image-container">
+              <img 
+                src="https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=80"
+
+                alt="Modern apartment building" 
+                className="hero-image"
+                onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/600x400/cccccc/ffffff?text=Image+Not+Found'; }}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="features-section">
+          <div className="container">
+            <div className="section-header">
+              <h2>Everything You Need</h2>
+              <p>A powerful toolkit for residents and managers.</p>
+            </div>
+            <div className="features-grid">
+              {features.map((feature, index) => (
+                <div key={index} className="feature-card">
+                  <div className="feature-icon">
+                    {feature.icon}
+                  </div>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* About Us Section */}
+        <section id="about" className="about-section">
+            <div className="container about-container">
+                <div className="about-image-container">
+                    <img 
+                      src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1000&q=80" 
+                      alt="Facility management team" 
+                      className="about-image"
+                      onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/600x400/cccccc/ffffff?text=Image+Not+Found'; }}
+                    />
+                </div>
+                <div className="about-text">
+                    <h2>About Us</h2>
+                    <p>
+                        Our Facility Management System is designed to streamline apartment living by bridging the gap between residents and management. We believe in creating transparent, efficient, and happy communities.
+                    </p>
+                    <p>
+                        Residents can lodge complaints, view and pay bills, approve visitors, and book shared facilities—all from a modern web interface. Administrators gain powerful tools to manage announcements, residents, and facility assets with ease.
+                    </p>
+                </div>
+            </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer id="contact" className="footer">
+        <div className="container">
+          <div className="footer-grid">
+            <div className="footer-col">
+              <h4>Facility Management System</h4>
+              <p>Making apartment life simpler, smarter, and more secure.</p>
+            </div>
+            <div className="footer-col">
+              <h4>Quick Links</h4>
+              <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#">Pricing</a></li>
+                <li><a href="#about">About Us</a></li>
+              </ul>
+            </div>
+            <div className="footer-col">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="#">Privacy Policy</a></li>
+                <li><a href="#">Terms of Service</a></li>
+              </ul>
+            </div>
+            <div className="footer-col">
+              <h4>Contact Us</h4>
+              <p>47, C Scheme <br/>Jaipur, 303027</p>
+              <p>Email: <a href="mailto:support@fms.com">support@facilitysystem.com</a></p>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p>&copy; {new Date().getFullYear()} Facility Management System. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
