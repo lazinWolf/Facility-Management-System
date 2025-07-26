@@ -9,19 +9,19 @@ backend/generated/prisma/
 # ====================
 # Frontend (React)
 # ====================
-client/node_modules/
-client/.pnp
-client/.pnp.js
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
 
 # React environment files
-client/.env.local
-client/.env.development.local
-client/.env.test.local
-client/.env.production.local
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
 # React build and test output
-client/build/
-client/coverage/
+frontend/build/
+frontend/coverage/
 
 # ====================
 # Common / Misc
