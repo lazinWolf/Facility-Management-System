@@ -34,15 +34,44 @@ const getMyVisitors = async (req, res) => {
 // Admin: view all visitor entries
 const getAllVisitors = async (req, res) => {
   try {
-    const visitors = await prisma.visitor.findMany({
-      include: { user: true },
-      orderBy: { createdAt: 'desc' }
+    const { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const whereClause = {
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { reason: { contains: search, mode: 'insensitive' } },
+          { user: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
+    };
+
+    const [visitors, totalVisitors] = await prisma.$transaction([
+      prisma.visitor.findMany({
+        where: whereClause,
+        include: { user: { select: { name: true } } },
+        orderBy: { [sortBy]: sortOrder },
+        skip: skip,
+        take: limitNum,
+      }),
+      prisma.visitor.count({ where: whereClause }),
+    ]);
+
+    res.json({
+      data: visitors,
+      currentPage: pageNum,
+      totalPages: Math.ceil(totalVisitors / limitNum),
+      totalCount: totalVisitors,
     });
-    res.json(visitors);
   } catch (err) {
+    console.error("Failed to fetch visitors:", err);
     res.status(500).json({ msg: 'Failed to fetch all visitors' });
   }
 };
+
 
 // Admin: approve a visitor entry
 const approveVisitor = async (req, res) => {

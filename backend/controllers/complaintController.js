@@ -35,12 +35,40 @@ const getUserComplaints = async (req, res) => {
 
 const getAllComplaints = async (req, res) => {
   try {
-    const complaints = await prisma.complaint.findMany({
-      include: { user: true },
-      orderBy: { createdAt: 'desc' }
+    const { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const whereClause = {
+      ...(search && {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { status: { contains: search, mode: 'insensitive' } },
+          { user: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
+    };
+
+    const [complaints, totalComplaints] = await prisma.$transaction([
+      prisma.complaint.findMany({
+        where: whereClause,
+        include: { user: { select: { name: true } } },
+        orderBy: { [sortBy]: sortOrder },
+        skip: skip,
+        take: limitNum,
+      }),
+      prisma.complaint.count({ where: whereClause }),
+    ]);
+
+    res.json({
+      data: complaints,
+      currentPage: pageNum,
+      totalPages: Math.ceil(totalComplaints / limitNum),
+      totalCount: totalComplaints,
     });
-    res.json(complaints);
   } catch (err) {
+    console.error("Failed to fetch complaints:", err);
     res.status(500).json({ msg: 'Failed to fetch all complaints' });
   }
 };
