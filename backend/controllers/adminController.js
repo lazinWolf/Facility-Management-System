@@ -4,21 +4,62 @@ const prisma = new PrismaClient();
 // @desc    Get all residents
 // @route   GET /api/admin/residents
 // @access  Private/Admin
+// @desc    Get all residents with filtering, sorting, and pagination
+// @route   GET /api/admin/residents
+// @access  Private/Admin
 const getResidents = async (req, res) => {
   try {
-    const residents = await prisma.user.findMany({
-      where: {
-        role: 'RESIDENT'
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        apartmentNo: true,
-        role: true,
-      }
+    // Destructure query parameters with default values
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      sortBy = 'name', 
+      sortOrder = 'asc' 
+    } = req.query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build the search filter for Prisma
+    const whereClause = {
+      role: 'RESIDENT',
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { apartmentNo: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+    
+    // Perform two queries in parallel: one for the data, one for the total count
+    const [residents, totalResidents] = await prisma.$transaction([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          apartmentNo: true,
+          role: true,
+        },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+        skip: skip,
+        take: limitNum,
+      }),
+      prisma.user.count({ where: whereClause }),
+    ]);
+
+    res.json({
+      residents,
+      currentPage: pageNum,
+      totalPages: Math.ceil(totalResidents / limitNum),
+      totalResidents,
     });
-    res.json(residents);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
