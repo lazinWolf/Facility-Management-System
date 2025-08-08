@@ -34,6 +34,8 @@ app.use('/api/bookings', bookingRoutes);
 const announcementRoutes = require('./routes/announcementRoutes');
 app.use('/api/announcements', announcementRoutes);
 
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.send('Facility Management API');
