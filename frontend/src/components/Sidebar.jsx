@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -9,6 +10,7 @@ import {
   BellIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 
 const links = [
   { to: '/dashboard', label: 'Dashboard', Icon: HomeIcon },
@@ -20,10 +22,10 @@ const links = [
 ];
 
 const styles = {
-  sidebar: {
-    width: '240px',
+  sidebar: (collapsed) => ({
+    width: collapsed ? '70px' : '240px',
     height: '100vh',
-    padding: '20px',
+    padding: '20px 10px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
@@ -32,14 +34,27 @@ const styles = {
     boxShadow: '2px 0 8px rgba(0, 0, 0, 0.05)',
     position: 'sticky',
     top: 0,
+    transition: 'width 0.2s ease',
+  }),
+  toggle: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    marginBottom: '20px',
+    padding: '4px',
+    display: 'flex',
+    alignSelf: 'flex-end',
   },
-  title: {
+  title: (collapsed) => ({
     marginBottom: '30px',
     textAlign: 'center',
-    fontSize: '22px',
+    fontSize: collapsed ? '0px' : '22px',
     fontWeight: '700',
     color: '#1e293b',
-  },
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    transition: 'font-size 0.2s ease',
+  }),
   nav: {
     display: 'flex',
     flexDirection: 'column',
@@ -56,22 +71,6 @@ const styles = {
     fontWeight: 500,
     transition: 'all 0.2s ease',
   },
-  logoutButton: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '6px',
-    color: '#475569',
-    textDecoration: 'none',
-    fontSize: '15px',
-    fontWeight: 500,
-    transition: 'all 0.2s ease',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
   linkHover: {
     backgroundColor: '#e2e8f0',
     color: '#0f172a',
@@ -80,7 +79,7 @@ const styles = {
     backgroundColor: '#cbd5e1',
     color: '#0f172a',
     fontWeight: 600,
-    boxShadow: 'inset 2px 0 0 #0f172a', // Restored this style
+    boxShadow: 'inset 2px 0 0 #0f172a',
   },
   icon: {
     width: '20px',
@@ -88,14 +87,15 @@ const styles = {
     marginRight: '10px',
     flexShrink: 0,
   },
-  footer: {
+  footer: (collapsed) => ({
     textAlign: 'center',
     fontSize: '12px',
     color: '#64748b',
     borderTop: '1px solid #e2e8f0',
     paddingTop: '16px',
     marginTop: '20px',
-  },
+    display: collapsed ? 'none' : 'block',
+  }),
   username: {
     color: '#1e293b',
     fontWeight: 'bold',
@@ -105,11 +105,24 @@ const styles = {
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
-    <aside style={styles.sidebar}>
+    <aside style={styles.sidebar(collapsed)}>
       <div>
-        <h1 style={styles.title}>FMS</h1>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={styles.toggle}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? (
+            <ChevronRightIcon style={{ width: '20px', height: '20px' }} />
+          ) : (
+            <ChevronLeftIcon style={{ width: '20px', height: '20px' }} />
+          )}
+        </button>
+
+        <h1 style={styles.title(collapsed)}>FMS</h1>
         <nav style={styles.nav}>
           {links.map(({ to, label, Icon }) => (
             <NavLink
@@ -119,12 +132,10 @@ export default function Sidebar() {
                 ...styles.link,
                 ...(isActive ? styles.linkActive : {}),
               })}
-              // Restored the onMouseEnter and onMouseLeave handlers
               onMouseEnter={(e) =>
                 Object.assign(e.currentTarget.style, styles.linkHover)
               }
               onMouseLeave={(e) => {
-                // Prevent hover style from persisting on the active link
                 if (e.currentTarget.getAttribute('aria-current') !== 'page') {
                   Object.assign(e.currentTarget.style, {
                     backgroundColor: '',
@@ -134,14 +145,13 @@ export default function Sidebar() {
               }}
             >
               <Icon style={styles.icon} />
-              <span>{label}</span>
+              {!collapsed && <span>{label}</span>}
             </NavLink>
           ))}
-          
+
           <button
             onClick={logout}
-            style={styles.logoutButton}
-            // Restored the onMouseEnter and onMouseLeave handlers
+            style={styles.link}
             onMouseEnter={(e) =>
               Object.assign(e.currentTarget.style, styles.linkHover)
             }
@@ -153,12 +163,12 @@ export default function Sidebar() {
             }
           >
             <ArrowRightOnRectangleIcon style={styles.icon} />
-            <span>Logout</span>
+            {!collapsed && <span>Logout</span>}
           </button>
         </nav>
       </div>
 
-      <div style={styles.footer}>
+      <div style={styles.footer(collapsed)}>
         Logged in as<br />
         <strong style={styles.username}>{user?.name || 'User'}</strong>
       </div>

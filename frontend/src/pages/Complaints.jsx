@@ -187,14 +187,8 @@ export default function Complaints() {
     const loadHistory = async () => {
       try {
         const { data } = await API.get('/complaints/mine');
-         const mockData = [
-            ...data,
-            {id: 2, title: "AC Not Cooling", status: "In Progress", createdAt: new Date().toISOString()},
-            {id: 3, title: "Projector Bulb Fused", status: "Resolved", createdAt: new Date().toISOString()},
-            {id: 4, title: "Chair is Broken", status: "Pending", createdAt: new Date().toISOString()},
-            {id: 5, title: "Coffee Machine Out of Order", status: "Pending", createdAt: new Date().toISOString()},
-        ]
-        setHistory(mockData);
+    
+        setHistory(data);
       } catch (err) {
         console.error(err);
       }

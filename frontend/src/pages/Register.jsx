@@ -1,10 +1,8 @@
-// src/pages/Register.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // Make sure this context is implemented
-import logo from '../resources/logo-crop.png';   // Make sure to replace with your actual logo path
+import { useAuth } from '../context/AuthContext';
+import logo from '../resources/logo-crop.png';
 
-// Define all styles in a single object
 const styles = {
   container: {
     minHeight: '100vh',
@@ -18,7 +16,7 @@ const styles = {
     justifyContent: 'center',
     backgroundColor: '#f9fafb',
     padding: '3rem',
-    // Note: For responsiveness, a real app would use media queries or a hook.
+    cursor: 'pointer',
   },
   leftPaneContent: {
     textAlign: 'center',
@@ -112,16 +110,47 @@ const styles = {
     textDecoration: 'underline',
   },
   error: {
-      marginBottom: '1rem',
-      borderRadius: '0.375rem',
-      backgroundColor: '#fef2f2',
-      padding: '1rem',
-      fontSize: '0.875rem',
-      color: '#b91c1c',
-      textAlign: 'center',
+    marginBottom: '1rem',
+    borderRadius: '0.375rem',
+    backgroundColor: '#fef2f2',
+    padding: '1rem',
+    fontSize: '0.875rem',
+    color: '#b91c1c',
+    textAlign: 'center',
   }
 };
 
+// Media query for mobile
+const mobileMediaQuery = `
+@media (max-width: 767px) {
+  .register-container {
+    flex-direction: column;
+  }
+
+  .register-left-pane,
+  .register-right-pane {
+    width: 100% !important;
+    padding: 2rem !important;
+  }
+
+  .register-left-pane {
+    order: 1;
+    padding-bottom: 1rem !important;
+  }
+
+  .register-right-pane {
+    order: 2;
+  }
+
+  .register-logo {
+    width: 8rem !important;
+  }
+
+  .register-title {
+    font-size: 1.75rem !important;
+  }
+}
+`;
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -139,27 +168,24 @@ export default function Register() {
     e.preventDefault();
     setError('');
     try {
-      // Original registration logic restored
       await register({ name, email, password });
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
-      // Original error handling restored
       setError(err.response?.data?.msg || 'Registration failed');
     }
   };
-  
+
   const buttonStyle = { ...styles.button, ...(isButtonHovered && styles.buttonHover) };
   const linkStyle = { ...styles.link, ...(isLinkHovered && styles.linkHover) };
-  // Renamed to match the component's purpose
-  const pageTitle = "Sign Up"; 
-  const buttonText = "Create Account";
 
   return (
-    <div style={styles.container}>
-      <div style={styles.leftPane}>
-        <div
+    <div style={styles.container} className="register-container">
+      <style>{mobileMediaQuery}</style>
+
+      <div
         style={styles.leftPane}
+        className="register-left-pane"
         onClick={() => navigate('/')}
       >
         <div style={styles.leftPaneContent}>
@@ -167,14 +193,15 @@ export default function Register() {
             src={logo}
             alt="Facility Management System Logo"
             style={styles.logo}
+            className="register-logo"
           />
           <h1 style={styles.systemTitle}>Facility Management System</h1>
         </div>
       </div>
-      </div>
-      <div style={styles.rightPane}>
+
+      <div style={styles.rightPane} className="register-right-pane">
         <div style={styles.formContainer}>
-          <h2 style={styles.title}>{pageTitle}</h2>
+          <h2 style={styles.title} className="register-title">Sign Up</h2>
 
           {error && <div style={styles.error}>{error}</div>}
 
@@ -189,7 +216,10 @@ export default function Register() {
                 required
                 onFocus={() => setFocusedField('name')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...styles.input, ...(focusedField === 'name' && styles.inputFocus) }}
+                style={{
+                  ...styles.input,
+                  ...(focusedField === 'name' && styles.inputFocus)
+                }}
               />
             </div>
             <div style={styles.inputGroup}>
@@ -202,7 +232,10 @@ export default function Register() {
                 required
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...styles.input, ...(focusedField === 'email' && styles.inputFocus) }}
+                style={{
+                  ...styles.input,
+                  ...(focusedField === 'email' && styles.inputFocus)
+                }}
               />
             </div>
             <div style={styles.inputGroup}>
@@ -215,16 +248,20 @@ export default function Register() {
                 required
                 onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...styles.input, ...(focusedField === 'password' && styles.inputFocus) }}
+                style={{
+                  ...styles.input,
+                  ...(focusedField === 'password' && styles.inputFocus)
+                }}
               />
             </div>
+
             <button
               type="submit"
               style={buttonStyle}
               onMouseEnter={() => setIsButtonHovered(true)}
               onMouseLeave={() => setIsButtonHovered(false)}
             >
-              {buttonText}
+              Create Account
             </button>
           </form>
 

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import styled from 'styled-components';
 
-// --- Styled Components ---
+// --- Styled Components (No changes here) ---
 
 const Page = styled.div`
   display: flex;
@@ -114,7 +114,8 @@ export default function Announcements() {
       try {
         setLoading(true);
         const { data } = await API.get('/announcements');
-        setAnnouncements(data);
+        // FIX: The announcement list is now inside the 'data' property of the response
+        setAnnouncements(data.data);
       } catch (err) {
         console.error("Failed to load announcements:", err);
       } finally {
@@ -140,7 +141,7 @@ export default function Announcements() {
         <TitleCard>Announcements</TitleCard>
         <TimeCard>
           <div>{getGreeting()}, {user.name}</div>
-          <div>� {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          <div>🕒 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           <div>📅 {time.toLocaleDateString()}</div>
         </TimeCard>
       </HeaderGrid>
@@ -150,7 +151,7 @@ export default function Announcements() {
           <p>Loading announcements...</p>
         ) : (
           <ListContainer>
-            {announcements.map((item) => (
+            {announcements && announcements.map((item) => (
               <AnnouncementItem key={item.id}>
                 <h3>{item.title}</h3>
                 <p>{item.content}</p>
@@ -159,7 +160,7 @@ export default function Announcements() {
                 </Footer>
               </AnnouncementItem>
             ))}
-            {announcements.length === 0 && <p>There are no announcements at this time.</p>}
+            {(!announcements || announcements.length === 0) && <p>There are no announcements at this time.</p>}
           </ListContainer>
         )}
       </MainSection>

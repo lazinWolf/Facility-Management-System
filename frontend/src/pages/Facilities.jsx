@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import styled from 'styled-components';
 
-// --- Styled Components (No changes here, they remain the same) ---
+// --- Styled Components (No changes here) ---
 
 const Page = styled.div`
   display: flex;
@@ -168,7 +168,6 @@ export default function Facilities() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
-  // ✨ --- FINAL CORRECTION BASED ON YOUR ENUM --- ✨
   const TIME_SLOTS = [
       { value: 'S_09_10', label: '09:00-10:00' },
       { value: 'S_10_11', label: '10:00-11:00' },
@@ -177,23 +176,24 @@ export default function Facilities() {
       { value: 'S_15_16', label: '15:00-16:00' },
   ];
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [facilitiesRes, bookingsRes] = await Promise.all([
-        API.get('/facilities'),
-        API.get('/bookings/mine')
-      ]);
-      setFacilities(facilitiesRes.data);
-      setMyBookings(bookingsRes.data);
-    } catch (err) {
-      console.error("Failed to load data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [facilitiesRes, bookingsRes] = await Promise.all([
+          API.get('/facilities'),
+          API.get('/bookings/mine')
+        ]);
+        // CONFIRMED FIX: Access the list via facilitiesRes.data.data
+        setFacilities(facilitiesRes.data.data);
+        setMyBookings(bookingsRes.data);
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const timer = setInterval(() => setTime(new Date()), 60000);
     loadData();
     return () => clearInterval(timer);
@@ -278,12 +278,12 @@ export default function Facilities() {
              </div>
            ) : (
             <FacilityGrid>
-                {loading ? <p>Loading facilities...</p> : facilities.map(f => (
+                {loading ? <p>Loading facilities...</p> : (facilities && facilities.map(f => (
                     <FacilityCard key={f.id} onClick={() => setSelectedFacility(f)}>
                         <h3>{f.name}</h3>
                         <p>Capacity per slot: {f.capacity}</p>
                     </FacilityCard>
-                ))}
+                )))}
             </FacilityGrid>
            )}
         </BookingContainer>
