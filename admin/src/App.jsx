@@ -1,6 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import axios from 'axios';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
+
 import {
     HomeIcon,
     UserPlusIcon,
@@ -13,6 +36,7 @@ import {
     ChevronRightIcon,
     XMarkIcon,
     ShieldCheckIcon,
+    ChevronUpDownIcon,
     PlusCircleIcon,
     TrashIcon,
     PencilSquareIcon,
@@ -345,183 +369,297 @@ const Spinner = () => <SpinnerContainer><SpinnerStyled /></SpinnerContainer>;
 
 // --- Page Components ---
 
-const Dashboard = () => (
-    <div>
-        <PageHeader>
-            <PageTitle>Dashboard</PageTitle>
-        </PageHeader>
-        <Card>
-            <p>Welcome to the Admin Dashboard. Select a section from the sidebar to manage your facility.</p>
-        </Card>
-    </div>
-);
+const Dashboard = () => {
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await API.get('/dashboard');
+                setDashboardData(res.data);
+            } catch (err) {
+                setError('Failed to load dashboard data.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    if (loading) return <Spinner />;
+    if (error) return <Card>{error}</Card>;
+    if (!dashboardData) return <Card>No data available.</Card>;
+
+    const { stats, charts, recentActivity } = dashboardData;
+
+    // Data for the Bar Chart (Recent Activity)
+    const dailyActivityChartData = {
+        labels: charts.dailyActivity.labels,
+        datasets: [
+            {
+                label: 'New Complaints',
+                data: charts.dailyActivity.complaints,
+                backgroundColor: 'rgba(239, 68, 68, 0.6)', // Red
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 1,
+            },
+            {
+                label: 'New Visitors',
+                data: charts.dailyActivity.visitors,
+                backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1,
+            },
+        ],
+    };
+    
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: true,
+                text: 'Last 7 Days Activity',
+            },
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1 // Ensure y-axis shows whole numbers for counts
+                }
+            }
+        }
+    };
+
+    return (
+        <div>
+            <PageHeader>
+                <PageTitle>Admin Dashboard</PageTitle>
+            </PageHeader>
+
+            {/* Stat Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <Card>
+                    <h3 style={{ fontSize: '1rem', color: '#64748b', margin: 0 }}>Total Residents</h3>
+                    <p style={{ fontSize: '2.25rem', fontWeight: 'bold', margin: '0.5rem 0 0 0' }}>{stats.totalResidents}</p>
+                </Card>
+                <Card>
+                    <h3 style={{ fontSize: '1rem', color: '#64748b', margin: 0 }}>Pending Complaints</h3>
+                    <p style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#ef4444', margin: '0.5rem 0 0 0' }}>{stats.pendingComplaints}</p>
+                </Card>
+                <Card>
+                    <h3 style={{ fontSize: '1rem', color: '#64748b', margin: 0 }}>Pending Visitors</h3>
+                    <p style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#f59e0b', margin: '0.5rem 0 0 0' }}>{stats.pendingVisitors}</p>
+                </Card>
+                <Card>
+                    <h3 style={{ fontSize: '1rem', color: '#64748b', margin: 0 }}>Unpaid Bills</h3>
+                    <p style={{ fontSize: '2.25rem', fontWeight: 'bold', margin: '0.5rem 0 0 0' }}>
+                        ₹{stats.totalUnpaidAmount.toLocaleString('en-IN')}
+                    </p>
+                </Card>
+            </div>
+            
+            {/* Main Content Area: Chart and Recent Activity */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+                
+                {/* NEW Bar Chart */}
+                <Card style={{ gridColumn: 'span 1 / auto' }}>
+                    <div style={{ height: '350px' }}>
+                        <Bar options={chartOptions} data={dailyActivityChartData} />
+                    </div>
+                </Card>
+
+                {/* Recent Complaints List */}
+                <Card>
+                    <h3 style={{ marginTop: 0 }}>Recent Pending Complaints</h3>
+                    {recentActivity.recentComplaints.length > 0 ? (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            {recentActivity.recentComplaints.map(complaint => (
+                                <li key={complaint.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                                    <p style={{ fontWeight: 'bold', margin: 0 }}>{complaint.title}</p>
+                                    <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                                        By {complaint.user.name} on {new Date(complaint.createdAt).toLocaleDateString()}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p>No pending complaints. Great job!</p>
+                    )}
+                </Card>
+            </div>
+        </div>
+    );
+};
 
 const Residents = () => {
-    // State management
     const [residents, setResidents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    
-    // State for 'Add Resident' modal
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newResident, setNewResident] = useState({ name: '', email: '', password: '', role: 'RESIDENT' });
-
-    // State for 'Edit Resident' modal
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingResident, setEditingResident] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalResidents: 0 });
 
-    // --- Data Fetching ---
-    const fetchResidents = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setPagination(p => ({ ...p, currentPage: 1 }));
+        }, 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchResidents = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
-            const res = await API.get('/admin/residents');
-            setResidents(res.data);
+            const params = {
+                page: pagination.currentPage,
+                limit: 10,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
+            const res = await API.get('/admin/residents', { params });
+            setResidents(res.data.residents);
+            setPagination(p => ({
+                ...p,
+                totalPages: res.data.totalPages,
+                totalResidents: res.data.totalResidents,
+            }));
         } catch (err) {
             setError('Failed to fetch residents.');
             console.error(err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
     useEffect(() => {
         fetchResidents();
-    }, []);
+    }, [fetchResidents]);
 
-    // --- Event Handlers ---
-    const handleAddResident = async (e) => {
+    useEffect(() => {
+        if (success || error) {
+            const timer = setTimeout(() => { setSuccess(''); setError(''); }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, error]);
+
+    const handleAddResident = useCallback(async (e) => {
         e.preventDefault();
-        setError('');
-        setSuccess('');
+        setError(''); setSuccess('');
         try {
             await API.post('/auth/register', newResident);
             setSuccess('Resident added successfully!');
             setIsAddModalOpen(false);
             setNewResident({ name: '', email: '', password: '', role: 'RESIDENT' });
-            fetchResidents(); // Refresh the list
-        } catch (err) {
-            setError(err.response?.data?.msg || 'Failed to add resident.');
-        }
-    };
+            fetchResidents();
+        } catch (err) { setError(err.response?.data?.msg || 'Failed to add resident.'); }
+    }, [newResident, fetchResidents]);
 
-    const handleUpdateResident = async (e) => {
+    const handleUpdateResident = useCallback(async (e) => {
         e.preventDefault();
-        setError('');
-        setSuccess('');
+        setError(''); setSuccess('');
         try {
             const { id, name, email, apartmentNo } = editingResident;
             await API.put(`/admin/residents/${id}`, { name, email, apartmentNo });
             setSuccess('Resident updated successfully!');
             setIsEditModalOpen(false);
-            fetchResidents(); // Refresh the list
-        } catch (err) {
-            setError(err.response?.data?.msg || 'Failed to update resident.');
-        }
-    };
+            fetchResidents();
+        } catch (err) { setError(err.response?.data?.msg || 'Failed to update resident.'); }
+    }, [editingResident, fetchResidents]);
 
-    const handleDeleteResident = async (residentId) => {
-        if (window.confirm('Are you sure you want to delete this resident? This action cannot be undone.')) {
-            setError('');
-            setSuccess('');
+    const handleDeleteResident = useCallback(async (residentId) => {
+        if (window.confirm('Are you sure you want to delete this resident?')) {
+            setError(''); setSuccess('');
             try {
                 await API.delete(`/admin/residents/${residentId}`);
                 setSuccess('Resident deleted successfully!');
-                fetchResidents(); // Refresh the list
-            } catch (err) {
-                setError(err.response?.data?.msg || 'Failed to delete resident.');
-            }
+                if (residents.length === 1 && pagination.currentPage > 1) {
+                    setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }));
+                } else {
+                    fetchResidents();
+                }
+            } catch (err) { setError(err.response?.data?.msg || 'Failed to delete resident.'); }
         }
-    };
-
-    const openEditModal = (resident) => {
+    }, [residents.length, pagination.currentPage, fetchResidents]);
+    
+    const handleSort = useCallback((key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    }, []);
+    
+    const openEditModal = useCallback((resident) => {
         setEditingResident(resident);
         setIsEditModalOpen(true);
-    };
+    }, []);
+
+    const renderSortableHeader = useCallback((key, title) => (
+        <th onClick={() => handleSort(key)} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {title}
+                {sortConfig.key === key ? (sortConfig.direction === 'asc' ? '▲' : '▼') : (<ChevronUpDownIcon width={16} height={16} style={{ color: '#9ca3af' }} />)}
+            </div>
+        </th>
+    ), [sortConfig, handleSort]);
 
     return (
         <div>
-            {/* Header */}
             <PageHeader>
                 <PageTitle>Residents</PageTitle>
-                <PrimaryButton onClick={() => setIsAddModalOpen(true)}>
-                    <UserPlusIcon width={20} height={20} style={{marginRight: '0.5rem'}} />
-                    Add Resident
-                </PrimaryButton>
+                <PrimaryButton onClick={() => setIsAddModalOpen(true)}><UserPlusIcon width={20} style={{ marginRight: '0.5rem' }} /> Add Resident</PrimaryButton>
             </PageHeader>
-
-            {/* Success/Error Messages */}
-            {success && <div style={{backgroundColor: '#dcfce7', color: '#166534', padding: '0.75rem', borderRadius: '0.375rem', marginBottom: '1rem'}}>{success}</div>}
-            {error && <div style={{backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '0.375rem', marginBottom: '1rem'}}>{error}</div>}
-
-            {/* Content */}
+            {success && <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{success}</div>}
+            {error && <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{error}</div>}
             <Card>
-                {loading ? (
-                    <Spinner />
-                ) : (
-                    <div style={{overflowX: 'auto'}}>
-                        <Table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Apartment No.</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {residents.map(resident => (
-                                    <tr key={resident.id}>
-                                        <td>{resident.name}</td>
-                                        <td>{resident.email}</td>
-                                        <td>{resident.apartmentNo || 'N/A'}</td>
-                                        <td style={{display: 'flex', gap: '0.5rem'}}>
-                                            <button onClick={() => openEditModal(resident)} style={{color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer'}} title="Edit">
-                                                <PencilSquareIcon width={20} height={20} />
-                                            </button>
-                                            <button onClick={() => handleDeleteResident(resident.id)} style={{color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer'}} title="Delete">
-                                                <TrashIcon width={20} height={20} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
+                <div style={{ marginBottom: '1rem' }}><Input type="text" placeholder="Search by name, email, or apartment..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                <div style={{ overflowX: 'auto' }}>
+                    <Table>
+                        <thead><tr>{renderSortableHeader('name', 'Name')}{renderSortableHeader('email', 'Email')}{renderSortableHeader('apartmentNo', 'Apartment No.')}<th>Actions</th></tr></thead>
+                        <tbody>
+                            {loading ? (<tr><td colSpan="4"><Spinner /></td></tr>) : (residents && residents.length > 0 ? (residents.map(resident => (
+                                <tr key={resident.id}>
+                                    <td>{resident.name}</td>
+                                    <td>{resident.email}</td>
+                                    <td>{resident.apartmentNo || 'N/A'}</td>
+                                    <td style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button onClick={() => openEditModal(resident)} style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }} title="Edit"><PencilSquareIcon width={20} /></button>
+                                        <button onClick={() => handleDeleteResident(resident.id)} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }} title="Delete"><TrashIcon width={20} /></button>
+                                    </td>
+                                </tr>))) : (<tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>No residents found.</td></tr>)
+                            )}
+                        </tbody>
+                    </Table>
+                </div>
+                {!loading && pagination.totalResidents > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', marginTop: '1rem' }}>
+                        <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalResidents} total residents)</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton>
+                            <SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton>
+                        </div>
                     </div>
                 )}
             </Card>
-
-            {/* Add Resident Modal */}
             <ModalComponent isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Resident">
-                <form onSubmit={handleAddResident}>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                        <Input type="text" placeholder="Full Name" value={newResident.name} onChange={e => setNewResident({...newResident, name: e.target.value})} required />
-                        <Input type="email" placeholder="Email Address" value={newResident.email} onChange={e => setNewResident({...newResident, email: e.target.value})} required />
-                        <Input type="password" placeholder="Password" value={newResident.password} onChange={e => setNewResident({...newResident, password: e.target.value})} required />
-                    </div>
-                    <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                        <SecondaryButton type="button" onClick={() => setIsAddModalOpen(false)}>Cancel</SecondaryButton>
-                        <PrimaryButton type="submit">Add Resident</PrimaryButton>
-                    </div>
-                </form>
+                <form onSubmit={handleAddResident}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Input type="text" placeholder="Full Name" value={newResident.name} onChange={e => setNewResident({ ...newResident, name: e.target.value })} required /><Input type="email" placeholder="Email Address" value={newResident.email} onChange={e => setNewResident({ ...newResident, email: e.target.value })} required /><Input type="password" placeholder="Password" value={newResident.password} onChange={e => setNewResident({ ...newResident, password: e.target.value })} required /></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsAddModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Add Resident</PrimaryButton></div></form>
             </ModalComponent>
-
-            {/* Edit Resident Modal */}
-            {editingResident && (
-                <ModalComponent isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Resident">
-                    <form onSubmit={handleUpdateResident}>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                            <Input type="text" placeholder="Full Name" value={editingResident.name} onChange={e => setEditingResident({...editingResident, name: e.target.value})} required />
-                            <Input type="email" placeholder="Email Address" value={editingResident.email} onChange={e => setEditingResident({...editingResident, email: e.target.value})} required />
-                            <Input type="text" placeholder="Apartment No." value={editingResident.apartmentNo || ''} onChange={e => setEditingResident({...editingResident, apartmentNo: e.target.value})} />
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                            <SecondaryButton type="button" onClick={() => setIsEditModalOpen(false)}>Cancel</SecondaryButton>
-                            <PrimaryButton type="submit">Save Changes</PrimaryButton>
-                        </div>
-                    </form>
-                </ModalComponent>
-            )}
+            {editingResident && (<ModalComponent isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Resident"><form onSubmit={handleUpdateResident}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Input type="text" placeholder="Full Name" value={editingResident.name} onChange={e => setEditingResident({ ...editingResident, name: e.target.value })} required /><Input type="email" placeholder="Email Address" value={editingResident.email} onChange={e => setEditingResident({ ...editingResident, email: e.target.value })} required /><Input type="text" placeholder="Apartment No." value={editingResident.apartmentNo || ''} onChange={e => setEditingResident({ ...editingResident, apartmentNo: e.target.value })} /></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsEditModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Save Changes</PrimaryButton></div></form></ModalComponent>)}
         </div>
     );
 };
@@ -529,65 +667,81 @@ const Residents = () => {
 const Complaints = () => {
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
-    const fetchComplaints = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchComplaints = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await API.get('/complaints');
-            setComplaints(res.data);
+            const params = {
+                page: pagination.currentPage,
+                limit: 10,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
+            const res = await API.get('/complaints', { params });
+            setComplaints(res.data.data);
+            setPagination(p => ({ ...p, totalPages: res.data.totalPages }));
         } catch (error) {
             console.error("Failed to fetch complaints", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
-    useEffect(() => { fetchComplaints(); }, []);
+    useEffect(() => {
+        fetchComplaints();
+    }, [fetchComplaints]);
 
-    const handleUpdateStatus = async (id) => {
+    const handleUpdateStatus = useCallback(async (id, newStatus) => {
         try {
-            await API.put(`/complaints/${id}`, { status: 'Resolved' });
+            await API.put(`/complaints/${id}`, { status: newStatus });
             fetchComplaints();
         } catch (error) { console.error("Failed to update complaint", error); }
-    };
+    }, [fetchComplaints]);
 
-    if (loading) return <Spinner />;
+    const handleSort = useCallback((key) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    }, []);
+
+    const renderSortableHeader = useCallback((key, title) => (
+        <th onClick={() => handleSort(key)} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {title} {sortConfig.key === key ? (sortConfig.direction === 'asc' ? '▲' : '▼') : <ChevronUpDownIcon width={16} />}
+            </div>
+        </th>
+    ), [sortConfig, handleSort]);
 
     return (
         <div>
             <PageHeader><PageTitle>Complaints</PageTitle></PageHeader>
             <Card>
-                <div style={{overflowX: 'auto'}}>
+                <div style={{ marginBottom: '1rem' }}><Input type="text" placeholder="Search complaints..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                <div style={{ overflowX: 'auto' }}>
                     <Table>
-                        <thead>
-                            <tr>
-                                <th>Date</th><th>Resident</th><th>Title</th><th>Description</th><th>Status</th><th>Action</th>
-                            </tr>
-                        </thead>
+                        <thead><tr>{renderSortableHeader('createdAt', 'Date')}<th>Resident</th>{renderSortableHeader('title', 'Title')}<th>Description</th>{renderSortableHeader('status', 'Status')}<th>Action</th></tr></thead>
                         <tbody>
-                            {complaints.map(c => (
+                            {loading ? (<tr><td colSpan="6"><Spinner /></td></tr>) : (complaints && complaints.length > 0 ? (complaints.map(c => (
                                 <tr key={c.id}>
                                     <td>{new Date(c.createdAt).toLocaleDateString()}</td>
                                     <td>{c.user?.name || 'N/A'}</td>
-                                    <td style={{fontWeight: 500}}>{c.title}</td>
+                                    <td style={{ fontWeight: 500 }}>{c.title}</td>
                                     <td>{c.description}</td>
-                                    <td>
-                                        <Badge bgColor={c.status === 'Resolved' ? '#dcfce7' : '#fef9c3'} color={c.status === 'Resolved' ? '#166534' : '#854d0e'}>
-                                            {c.status}
-                                        </Badge>
-                                    </td>
-                                    <td>
-                                        {c.status === 'Pending' && (
-                                            <button onClick={() => handleUpdateStatus(c.id)} style={{display: 'flex', alignItems: 'center', color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer'}}>
-                                                <ShieldCheckIcon width={16} height={16} style={{marginRight: '0.25rem'}} /> Mark as Resolved
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                    <td><Badge bgColor={c.status === 'Resolved' ? '#dcfce7' : '#fef9c3'} color={c.status === 'Resolved' ? '#166534' : '#854d0e'}>{c.status}</Badge></td>
+                                    <td>{c.status === 'Pending' && (<button onClick={() => handleUpdateStatus(c.id, 'Resolved')} style={{ display: 'flex', alignItems: 'center', color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer' }}><ShieldCheckIcon width={16} style={{ marginRight: '0.25rem' }} /> Mark as Resolved</button>)}</td>
+                                </tr>))) : (<tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No complaints found.</td></tr>))}
                         </tbody>
                     </Table>
                 </div>
+                {pagination.totalPages > 1 && (<div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '1rem', gap: '0.5rem' }}><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton><span style={{ fontSize: '0.875rem' }}>Page {pagination.currentPage} of {pagination.totalPages}</span><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton></div>)}
             </Card>
         </div>
     );
@@ -596,65 +750,81 @@ const Complaints = () => {
 const Visitors = () => {
     const [visitors, setVisitors] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
-    const fetchVisitors = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchVisitors = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await API.get('/visitors');
-            setVisitors(res.data);
+            const params = {
+                page: pagination.currentPage,
+                limit: 10,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
+            const res = await API.get('/visitors', { params });
+            setVisitors(res.data.data);
+            setPagination(p => ({ ...p, totalPages: res.data.totalPages }));
         } catch (error) {
             console.error("Failed to fetch visitors", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
-    useEffect(() => { fetchVisitors(); }, []);
+    useEffect(() => {
+        fetchVisitors();
+    }, [fetchVisitors]);
 
-    const handleApproveVisitor = async (id) => {
+    const handleApproveVisitor = useCallback(async (id) => {
         try {
             await API.put(`/visitors/${id}/approve`);
             fetchVisitors();
         } catch (error) { console.error("Failed to approve visitor", error); }
-    };
+    }, [fetchVisitors]);
 
-    if (loading) return <Spinner />;
+    const handleSort = useCallback((key) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    }, []);
+
+    const renderSortableHeader = useCallback((key, title) => (
+        <th onClick={() => handleSort(key)} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {title} {sortConfig.key === key ? (sortConfig.direction === 'asc' ? '▲' : '▼') : <ChevronUpDownIcon width={16} />}
+            </div>
+        </th>
+    ), [sortConfig, handleSort]);
 
     return (
         <div>
             <PageHeader><PageTitle>Visitor Approvals</PageTitle></PageHeader>
             <Card>
-                <div style={{overflowX: 'auto'}}>
+                <div style={{ marginBottom: '1rem' }}><Input type="text" placeholder="Search visitors..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                <div style={{ overflowX: 'auto' }}>
                     <Table>
-                        <thead>
-                            <tr>
-                                <th>Date</th><th>Visitor Name</th><th>Reason</th><th>Resident</th><th>Status</th><th>Action</th>
-                            </tr>
-                        </thead>
+                        <thead><tr>{renderSortableHeader('createdAt', 'Date')}{renderSortableHeader('name', 'Visitor Name')}{renderSortableHeader('reason', 'Reason')}<th>Resident</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody>
-                            {visitors.map(v => (
+                            {loading ? (<tr><td colSpan="6"><Spinner /></td></tr>) : (visitors && visitors.length > 0 ? (visitors.map(v => (
                                 <tr key={v.id}>
                                     <td>{new Date(v.createdAt).toLocaleString()}</td>
                                     <td>{v.name}</td>
                                     <td>{v.reason}</td>
                                     <td>{v.user?.name || 'N/A'}</td>
-                                    <td>
-                                        <Badge bgColor={v.approved ? '#dcfce7' : '#fef9c3'} color={v.approved ? '#166534' : '#854d0e'}>
-                                            {v.approved ? 'Approved' : 'Pending'}
-                                        </Badge>
-                                    </td>
-                                    <td>
-                                        {!v.approved && (
-                                            <button onClick={() => handleApproveVisitor(v.id)} style={{display: 'flex', alignItems: 'center', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer'}}>
-                                                <ShieldCheckIcon width={16} height={16} style={{marginRight: '0.25rem'}} /> Approve
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                    <td><Badge bgColor={v.approved ? '#dcfce7' : '#fef9c3'} color={v.approved ? '#166534' : '#854d0e'}>{v.approved ? 'Approved' : 'Pending'}</Badge></td>
+                                    <td>{!v.approved && (<button onClick={() => handleApproveVisitor(v.id)} style={{ display: 'flex', alignItems: 'center', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}><ShieldCheckIcon width={16} style={{ marginRight: '0.25rem' }} /> Approve</button>)}</td>
+                                </tr>))) : (<tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No visitors found.</td></tr>))}
                         </tbody>
                     </Table>
                 </div>
+                {pagination.totalPages > 1 && (<div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '1rem', gap: '0.5rem' }}><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton><span style={{ fontSize: '0.875rem' }}>Page {pagination.currentPage} of {pagination.totalPages}</span><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton></div>)}
             </Card>
         </div>
     );
@@ -665,74 +835,91 @@ const Facilities = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newFacility, setNewFacility] = useState({ name: '', description: '', capacity: '' });
+    const [error, setError] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
-    const fetchFacilities = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchFacilities = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
-            const res = await API.get('/facilities');
-            setFacilities(res.data);
-        } catch (error) {
-            console.error("Failed to fetch facilities", error);
+            const params = {
+                page: pagination.currentPage,
+                limit: 10,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
+            const res = await API.get('/facilities', { params });
+            setFacilities(res.data.data);
+            setPagination(p => ({ ...p, totalPages: res.data.totalPages }));
+        } catch (err) {
+            console.error("Failed to fetch facilities", err);
+            setError("Could not load facilities.");
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
-    useEffect(() => { fetchFacilities(); }, []);
+    useEffect(() => {
+        fetchFacilities();
+    }, [fetchFacilities]);
 
-    const handleAddFacility = async (e) => {
+    const handleAddFacility = useCallback(async (e) => {
         e.preventDefault();
         try {
-            await API.post('/facilities', { ...newFacility, capacity: parseInt(newFacility.capacity) });
+            await API.post('/facilities', { ...newFacility, capacity: parseInt(newFacility.capacity, 10) });
             setIsModalOpen(false);
             setNewFacility({ name: '', description: '', capacity: '' });
             fetchFacilities();
         } catch (error) {
             console.error("Failed to add facility", error);
         }
-    };
+    }, [newFacility, fetchFacilities]);
+
+    const handleSort = useCallback((key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    }, []);
+
+    const renderSortableHeader = useCallback((key, title) => (
+        <th onClick={() => handleSort(key)} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {title} {sortConfig.key === key ? (sortConfig.direction === 'asc' ? '▲' : '▼') : <ChevronUpDownIcon width={16} />}
+            </div>
+        </th>
+    ), [sortConfig, handleSort]);
 
     return (
         <div>
             <PageHeader>
                 <PageTitle>Facilities</PageTitle>
-                <PrimaryButton onClick={() => setIsModalOpen(true)}>
-                    <PlusCircleIcon width={20} height={20} style={{marginRight: '0.5rem'}} /> Add Facility
-                </PrimaryButton>
+                <PrimaryButton onClick={() => setIsModalOpen(true)}><PlusCircleIcon width={20} style={{ marginRight: '0.5rem' }} /> Add Facility</PrimaryButton>
             </PageHeader>
-            {loading ? <Spinner /> : (
-                <Card>
-                    <div style={{overflowX: 'auto'}}>
-                        <Table>
-                            <thead>
-                                <tr><th>Name</th><th>Description</th><th>Capacity</th></tr>
-                            </thead>
-                            <tbody>
-                                {facilities.map(f => (
-                                    <tr key={f.id}>
-                                        <td>{f.name}</td>
-                                        <td>{f.description}</td>
-                                        <td>{f.capacity}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </div>
-                </Card>
-            )}
-            <ModalComponent isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Facility">
-                <form onSubmit={handleAddFacility}>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                        <Input type="text" placeholder="Facility Name" value={newFacility.name} onChange={e => setNewFacility({...newFacility, name: e.target.value})} required />
-                        <Textarea placeholder="Description" value={newFacility.description} onChange={e => setNewFacility({...newFacility, description: e.target.value})} required />
-                        <Input type="number" placeholder="Capacity" value={newFacility.capacity} onChange={e => setNewFacility({...newFacility, capacity: e.target.value})} required />
-                    </div>
-                    <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                        <SecondaryButton type="button" onClick={() => setIsModalOpen(false)}>Cancel</SecondaryButton>
-                        <PrimaryButton type="submit">Add Facility</PrimaryButton>
-                    </div>
-                </form>
-            </ModalComponent>
+            <Card>
+                {error && <p style={{ color: '#dc2626', textAlign: 'center', marginBottom: '1rem' }}>{error}</p>}
+                <div style={{ marginBottom: '1rem' }}><Input type="text" placeholder="Search facilities..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                <div style={{ overflowX: 'auto' }}>
+                    <Table>
+                        <thead><tr>{renderSortableHeader('name', 'Name')}<th>Description</th>{renderSortableHeader('capacity', 'Capacity')}</tr></thead>
+                        <tbody>
+                            {loading ? (<tr><td colSpan="3"><Spinner /></td></tr>) : (facilities && facilities.length > 0 ? (facilities.map(f => (
+                                <tr key={f.id}><td>{f.name}</td><td>{f.description}</td><td>{f.capacity}</td></tr>))) : (<tr><td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>No facilities found.</td></tr>))}
+                        </tbody>
+                    </Table>
+                </div>
+                {pagination.totalPages > 1 && (<div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '1rem', gap: '0.5rem' }}><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton><span style={{ fontSize: '0.875rem' }}>Page {pagination.currentPage} of {pagination.totalPages}</span><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton></div>)}
+            </Card>
+            <ModalComponent isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Facility"><form onSubmit={handleAddFacility}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Input type="text" placeholder="Facility Name" value={newFacility.name} onChange={e => setNewFacility({ ...newFacility, name: e.target.value })} required /><Textarea placeholder="Description" value={newFacility.description} onChange={e => setNewFacility({ ...newFacility, description: e.target.value })} required /><Input type="number" placeholder="Capacity" value={newFacility.capacity} onChange={e => setNewFacility({ ...newFacility, capacity: e.target.value })} required /></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Add Facility</PrimaryButton></div></form></ModalComponent>
         </div>
     );
 };
@@ -742,22 +929,41 @@ const Announcements = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
-    const fetchAnnouncements = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchAnnouncements = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await API.get('/announcements');
-            setAnnouncements(res.data);
+            const params = {
+                page: pagination.currentPage,
+                limit: 5,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
+            const res = await API.get('/announcements', { params });
+            setAnnouncements(res.data.data);
+            setPagination(p => ({ ...p, totalPages: res.data.totalPages }));
         } catch (error) {
             console.error("Failed to fetch announcements", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
-    useEffect(() => { fetchAnnouncements(); }, []);
+    useEffect(() => {
+        fetchAnnouncements();
+    }, [fetchAnnouncements]);
 
-    const handleCreate = async (e) => {
+    const handleCreate = useCallback(async (e) => {
         e.preventDefault();
         try {
             await API.post('/announcements', newAnnouncement);
@@ -767,9 +973,9 @@ const Announcements = () => {
         } catch (error) {
             console.error("Failed to create announcement", error);
         }
-    };
+    }, [newAnnouncement, fetchAnnouncements]);
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         if (window.confirm('Are you sure you want to delete this announcement?')) {
             try {
                 await API.delete(`/announcements/${id}`);
@@ -778,46 +984,25 @@ const Announcements = () => {
                 console.error("Failed to delete announcement", error);
             }
         }
-    };
+    }, [fetchAnnouncements]);
 
     return (
         <div>
             <PageHeader>
                 <PageTitle>Announcements</PageTitle>
-                <PrimaryButton onClick={() => setIsModalOpen(true)}>
-                    <PlusCircleIcon width={20} height={20} style={{marginRight: '0.5rem'}} /> Create Announcement
-                </PrimaryButton>
+                <PrimaryButton onClick={() => setIsModalOpen(true)}><PlusCircleIcon width={20} style={{ marginRight: '0.5rem' }} /> Create Announcement</PrimaryButton>
             </PageHeader>
-            {loading ? <Spinner /> : (
-                <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                    {announcements.map(a => (
-                        <Card key={a.id}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                                <div>
-                                    <h3 style={{fontWeight: 'bold'}}>{a.title}</h3>
-                                    <p style={{marginTop: '0.25rem'}}>{a.content}</p>
-                                    <p style={{fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem'}}>By {a.creator.name} on {new Date(a.createdAt).toLocaleDateString()}</p>
-                                </div>
-                                <button onClick={() => handleDelete(a.id)} style={{color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer'}}>
-                                    <TrashIcon width={20} height={20} />
-                                </button>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-            )}
-            <ModalComponent isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Announcement">
-                <form onSubmit={handleCreate}>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                        <Input type="text" placeholder="Title" value={newAnnouncement.title} onChange={e => setNewAnnouncement({...newAnnouncement, title: e.target.value})} required />
-                        <Textarea placeholder="Content" value={newAnnouncement.content} onChange={e => setNewAnnouncement({...newAnnouncement, content: e.target.value})} rows="4" required />
-                    </div>
-                    <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                        <SecondaryButton type="button" onClick={() => setIsModalOpen(false)}>Cancel</SecondaryButton>
-                        <PrimaryButton type="submit">Create</PrimaryButton>
-                    </div>
-                </form>
-            </ModalComponent>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <Input type="text" placeholder="Search announcements..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flexGrow: 1 }} />
+                <Select value={`${sortConfig.key},${sortConfig.direction}`} onChange={e => { const [key, direction] = e.target.value.split(','); setSortConfig({ key, direction }); }}>
+                    <option value="createdAt,desc">Newest First</option>
+                    <option value="createdAt,asc">Oldest First</option>
+                    <option value="title,asc">Title (A-Z)</option>
+                </Select>
+            </div>
+            {loading ? <Spinner /> : (announcements && announcements.length > 0 ? (<div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>{announcements.map(a => (<Card key={a.id}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}><div><h3 style={{ fontWeight: 'bold' }}>{a.title}</h3><p style={{ marginTop: '0.25rem' }}>{a.content}</p><p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>By {a.creator.name} on {new Date(a.createdAt).toLocaleDateString()}</p></div><button onClick={() => handleDelete(a.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><TrashIcon width={20} /></button></div></Card>))}</div>) : (<Card style={{ textAlign: 'center' }}>No announcements found.</Card>))}
+            {pagination.totalPages > 1 && (<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '1rem', gap: '0.5rem', marginTop: '1rem' }}><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton><span style={{ fontSize: '0.875rem' }}>Page {pagination.currentPage} of {pagination.totalPages}</span><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton></div>)}
+            <ModalComponent isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Announcement"><form onSubmit={handleCreate}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Input type="text" placeholder="Title" value={newAnnouncement.title} onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })} required /><Textarea placeholder="Content" value={newAnnouncement.content} onChange={e => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })} rows="4" required /></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Create</PrimaryButton></div></form></ModalComponent>
         </div>
     );
 };
@@ -830,32 +1015,45 @@ const Bills = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [newBill, setNewBill] = useState({ userId: '', title: '', amount: '', dueDate: '' });
     const [editingBill, setEditingBill] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'dueDate', direction: 'desc' });
+    const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
-    const fetchData = async () => {
+    useEffect(() => {
+        const timerId = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+        return () => clearTimeout(timerId);
+    }, [searchTerm]);
+
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            // Use the new /admin/residents endpoint
+            const billParams = {
+                page: pagination.currentPage,
+                limit: 10,
+                sortBy: sortConfig.key,
+                sortOrder: sortConfig.direction,
+                search: debouncedSearchTerm,
+            };
             const [billsRes, usersRes] = await Promise.all([
-                API.get('/bills'),
-                API.get('/admin/residents') 
+                API.get('/bills', { params: billParams }),
+                API.get('/admin/residents')
             ]);
-            setBills(billsRes.data);
-            setUsers(usersRes.data);
+            setBills(billsRes.data.data);
+            setPagination(p => ({ ...p, totalPages: billsRes.data.totalPages }));
+            setUsers(usersRes.data.residents);
         } catch (error) {
             console.error("Failed to fetch data", error);
-            // Fallback to only fetching bills if users fail
-            if (error.response?.config?.url?.includes('/admin/residents')) {
-                 const billsRes = await API.get('/bills');
-                 setBills(billsRes.data);
-            }
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.currentPage, sortConfig, debouncedSearchTerm]);
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-    const handleCreate = async (e) => {
+    const handleCreate = useCallback(async (e) => {
         e.preventDefault();
         try {
             await API.post('/bills', { ...newBill, userId: parseInt(newBill.userId), amount: parseFloat(newBill.amount) });
@@ -863,112 +1061,76 @@ const Bills = () => {
             setNewBill({ userId: '', title: '', amount: '', dueDate: '' });
             fetchData();
         } catch (error) { console.error("Failed to create bill", error); }
-    };
-    
-    const handleUpdate = async (e) => {
+    }, [newBill, fetchData]);
+
+    const handleUpdate = useCallback(async (e) => {
         e.preventDefault();
         try {
-            const {id, title, amount, dueDate, status} = editingBill;
+            const { id, title, amount, dueDate, status } = editingBill;
             await API.put(`/bills/${id}`, { title, amount: parseFloat(amount), dueDate, status });
             setIsEditModalOpen(false);
             setEditingBill(null);
             fetchData();
         } catch (error) { console.error("Failed to update bill", error); }
-    };
+    }, [editingBill, fetchData]);
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         if (window.confirm('Are you sure you want to delete this bill?')) {
             try {
                 await API.delete(`/bills/${id}`);
                 fetchData();
             } catch (error) { console.error("Failed to delete bill", error); }
         }
-    };
+    }, [fetchData]);
 
-    const openEditModal = (bill) => {
-        setEditingBill({...bill, dueDate: new Date(bill.dueDate).toISOString().split('T')[0]});
+    const openEditModal = useCallback((bill) => {
+        setEditingBill({ ...bill, dueDate: new Date(bill.dueDate).toISOString().split('T')[0] });
         setIsEditModalOpen(true);
-    };
+    }, []);
 
-    if (loading) return <Spinner />;
+    const handleSort = useCallback((key) => {
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+    }, []);
+
+    const renderSortableHeader = useCallback((key, title) => (
+        <th onClick={() => handleSort(key)} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {title} {sortConfig.key === key ? (sortConfig.direction === 'asc' ? '▲' : '▼') : <ChevronUpDownIcon width={16} />}
+            </div>
+        </th>
+    ), [sortConfig, handleSort]);
 
     return (
         <div>
             <PageHeader>
                 <PageTitle>Bills Management</PageTitle>
-                <PrimaryButton onClick={() => setIsCreateModalOpen(true)} disabled={!users.length}>
-                    <PlusCircleIcon width={20} height={20} style={{marginRight: '0.5rem'}} /> Create Bill
-                </PrimaryButton>
+                <PrimaryButton onClick={() => setIsCreateModalOpen(true)} disabled={!users.length}><PlusCircleIcon width={20} style={{ marginRight: '0.5rem' }} /> Create Bill</PrimaryButton>
             </PageHeader>
-            {!users.length && <div style={{backgroundColor: '#fef9c3', color: '#854d0e', padding: '0.75rem', borderRadius: '0.375rem', marginBottom: '1rem'}}>Could not fetch residents. Please ensure the API is running and you have admin permissions.</div>}
             <Card>
-                <div style={{overflowX: 'auto'}}>
+                <div style={{ marginBottom: '1rem' }}><Input type="text" placeholder="Search bills..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                <div style={{ overflowX: 'auto' }}>
                     <Table>
-                        <thead>
-                            <tr><th>Resident</th><th>Title</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr>
-                        </thead>
+                        <thead><tr><th>Resident</th>{renderSortableHeader('title', 'Title')}{renderSortableHeader('amount', 'Amount')}{renderSortableHeader('dueDate', 'Due Date')}{renderSortableHeader('status', 'Status')}<th>Actions</th></tr></thead>
                         <tbody>
-                            {bills.map(b => (
+                            {loading ? (<tr><td colSpan="6"><Spinner /></td></tr>) : (bills && bills.length > 0 ? (bills.map(b => (
                                 <tr key={b.id}>
                                     <td>{b.user?.name || 'N/A'}</td>
                                     <td>{b.title}</td>
-                                    <td>${b.amount.toFixed(2)}</td>
+                                    <td>₹{b.amount.toFixed(2)}</td>
                                     <td>{new Date(b.dueDate).toLocaleDateString()}</td>
-                                    <td>
-                                        <Badge bgColor={b.status === 'paid' ? '#dcfce7' : '#fee2e2'} color={b.status === 'paid' ? '#166534' : '#991b1b'}>
-                                            {b.status}
-                                        </Badge>
+                                    <td><Badge bgColor={b.status === 'paid' ? '#dcfce7' : '#fee2e2'} color={b.status === 'paid' ? '#166534' : '#991b1b'}>{b.status}</Badge></td>
+                                    <td style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button onClick={() => openEditModal(b)} style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}><PencilSquareIcon width={20} /></button>
+                                        <button onClick={() => handleDelete(b.id)} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}><TrashIcon width={20} /></button>
                                     </td>
-                                    <td style={{display: 'flex', gap: '0.5rem'}}>
-                                        <button onClick={() => openEditModal(b)} style={{color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer'}}><PencilSquareIcon width={20} height={20} /></button>
-                                        <button onClick={() => handleDelete(b.id)} style={{color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer'}}><TrashIcon width={20} height={20} /></button>
-                                    </td>
-                                </tr>
-                            ))}
+                                </tr>))) : (<tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No bills found.</td></tr>))}
                         </tbody>
                     </Table>
                 </div>
+                {pagination.totalPages > 1 && (<div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '1rem', gap: '0.5rem' }}><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage - 1 }))} disabled={pagination.currentPage <= 1}>Previous</SecondaryButton><span style={{ fontSize: '0.875rem' }}>Page {pagination.currentPage} of {pagination.totalPages}</span><SecondaryButton onClick={() => setPagination(p => ({ ...p, currentPage: p.currentPage + 1 }))} disabled={pagination.currentPage >= pagination.totalPages}>Next</SecondaryButton></div>)}
             </Card>
-            
-            {/* Create Bill Modal */}
-            <ModalComponent isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Bill">
-                <form onSubmit={handleCreate}>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                        <Select value={newBill.userId} onChange={e => setNewBill({...newBill, userId: e.target.value})} required>
-                            <option value="" disabled>Select a Resident</option>
-                            {users.map(u => <option key={u.id} value={u.id}>{u.name} (Apt: {u.apartmentNo || 'N/A'})</option>)}
-                        </Select>
-                        <Input type="text" placeholder="Bill Title (e.g., Maintenance Fee)" value={newBill.title} onChange={e => setNewBill({...newBill, title: e.target.value})} required />
-                        <Input type="number" step="0.01" placeholder="Amount" value={newBill.amount} onChange={e => setNewBill({...newBill, amount: e.target.value})} required />
-                        <Input type="date" value={newBill.dueDate} onChange={e => setNewBill({...newBill, dueDate: e.target.value})} required />
-                    </div>
-                    <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                        <SecondaryButton type="button" onClick={() => setIsCreateModalOpen(false)}>Cancel</SecondaryButton>
-                        <PrimaryButton type="submit">Create Bill</PrimaryButton>
-                    </div>
-                </form>
-            </ModalComponent>
-
-            {/* Edit Bill Modal */}
-            {editingBill && (
-                <ModalComponent isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Bill">
-                    <form onSubmit={handleUpdate}>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                            <Input type="text" placeholder="Bill Title" value={editingBill.title} onChange={e => setEditingBill({...editingBill, title: e.target.value})} required />
-                            <Input type="number" step="0.01" placeholder="Amount" value={editingBill.amount} onChange={e => setEditingBill({...editingBill, amount: e.target.value})} required />
-                            <Input type="date" value={editingBill.dueDate} onChange={e => setEditingBill({...editingBill, dueDate: e.target.value})} required />
-                            <Select value={editingBill.status} onChange={e => setEditingBill({...editingBill, status: e.target.value})}>
-                                <option value="unpaid">Unpaid</option>
-                                <option value="paid">Paid</option>
-                            </Select>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem'}}>
-                            <SecondaryButton type="button" onClick={() => setIsEditModalOpen(false)}>Cancel</SecondaryButton>
-                            <PrimaryButton type="submit">Save Changes</PrimaryButton>
-                        </div>
-                    </form>
-                </ModalComponent>
-            )}
+            <ModalComponent isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Bill"><form onSubmit={handleCreate}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Select value={newBill.userId} onChange={e => setNewBill({ ...newBill, userId: e.target.value })} required><option value="" disabled>Select a Resident</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</Select><Input type="text" placeholder="Bill Title (e.g., Maintenance Fee)" value={newBill.title} onChange={e => setNewBill({ ...newBill, title: e.target.value })} required /><Input type="number" placeholder="Amount" value={newBill.amount} onChange={e => setNewBill({ ...newBill, amount: e.target.value })} required /><Input type="date" value={newBill.dueDate} onChange={e => setNewBill({ ...newBill, dueDate: e.target.value })} required /></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsCreateModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Create Bill</PrimaryButton></div></form></ModalComponent>
+            {editingBill && (<ModalComponent isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Bill"><form onSubmit={handleUpdate}><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}><Input type="text" placeholder="Bill Title" value={editingBill.title} onChange={e => setEditingBill({ ...editingBill, title: e.target.value })} required /><Input type="number" placeholder="Amount" value={editingBill.amount} onChange={e => setEditingBill({ ...editingBill, amount: e.target.value })} required /><Input type="date" value={editingBill.dueDate} onChange={e => setEditingBill({ ...editingBill, dueDate: e.target.value })} required /><Select value={editingBill.status} onChange={e => setEditingBill({ ...editingBill, status: e.target.value })}><option value="unpaid">Unpaid</option><option value="paid">Paid</option></Select></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}><SecondaryButton type="button" onClick={() => setIsEditModalOpen(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Save Changes</PrimaryButton></div></form></ModalComponent>)}
         </div>
     );
 };
@@ -979,7 +1141,7 @@ const Bills = () => {
 const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded, onLogout }) => {
     const navItems = [
         { name: 'Dashboard', icon: HomeIcon },
-        { name: 'Residents', icon: UserGroupIcon }, // Changed Icon for better representation
+        { name: 'Residents', icon: UserGroupIcon },
         { name: 'Complaints', icon: ClipboardDocumentListIcon },
         { name: 'Visitors', icon: UserGroupIcon },
         { name: 'Facilities', icon: BuildingOffice2Icon },
@@ -1063,7 +1225,6 @@ const LoginPage = ({ onLoginSuccess }) => {
 
 // --- Main App Component ---
 
-// Moved outside the component to prevent re-creation on every render
 const pageComponents = {
     'Dashboard': Dashboard,
     'Residents': Residents,
@@ -1097,6 +1258,7 @@ export default function App() {
     }, []);
 
     const handleLoginSuccess = (loggedInUser) => setUser(loggedInUser);
+
     const handleLogout = () => {
         localStorage.removeItem('admin_user');
         localStorage.removeItem('admin_token');
