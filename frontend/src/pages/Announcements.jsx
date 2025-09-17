@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import styled from 'styled-components';
 
-// --- Styled Components (No changes here) ---
+// --- Styled Components ---
 
 const Page = styled.div`
   display: flex;
@@ -97,12 +97,39 @@ const Footer = styled.div`
   padding-top: 12px;
 `;
 
+const PaginationControls = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e9e4f0;
+
+  button {
+    background-color: #e9e4f0;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: 600;
+
+    &:disabled {
+      background-color: #f5f5f5;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+  }
+`;
+
 // --- Main Component ---
 export default function Announcements() {
   const { user } = useAuth();
   const [time, setTime] = useState(new Date());
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -110,20 +137,35 @@ export default function Announcements() {
   }, []);
 
   useEffect(() => {
-    const loadAnnouncements = async () => {
+    const loadAnnouncements = async (pageToLoad) => {
       try {
         setLoading(true);
-        const { data } = await API.get('/announcements');
-        // FIX: The announcement list is now inside the 'data' property of the response
-        setAnnouncements(data.data);
+        const { data } = await API.get(`/announcements?page=${pageToLoad}`);
+        
+        if (data && Array.isArray(data.data)) {
+          setAnnouncements(data.data);
+          setCurrentPage(data.currentPage);
+          setTotalPages(data.totalPages);
+        } else {
+          setAnnouncements([]);
+        }
+
       } catch (err) {
         console.error("Failed to load announcements:", err);
+        setAnnouncements([]);
       } finally {
         setLoading(false);
       }
     };
-    loadAnnouncements();
-  }, []);
+
+    loadAnnouncements(currentPage);
+  }, [currentPage]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const getGreeting = () => {
     const hour = time.getHours();
@@ -150,18 +192,41 @@ export default function Announcements() {
         {loading ? (
           <p>Loading announcements...</p>
         ) : (
-          <ListContainer>
-            {announcements && announcements.map((item) => (
-              <AnnouncementItem key={item.id}>
-                <h3>{item.title}</h3>
-                <p>{item.content}</p>
-                <Footer>
-                  Posted by {item.creator.name} on {new Date(item.createdAt).toLocaleDateString()}
-                </Footer>
-              </AnnouncementItem>
-            ))}
-            {(!announcements || announcements.length === 0) && <p>There are no announcements at this time.</p>}
-          </ListContainer>
+          <>
+            <ListContainer>
+              {announcements.length > 0 ? (
+                announcements.map((item) => (
+                  <AnnouncementItem key={item.id}>
+                    <h3>{item.title}</h3>
+                    <p>{item.content}</p>
+                    <Footer>
+                      Posted by {item.creator.name} on {new Date(item.createdAt).toLocaleDateString()}
+                    </Footer>
+                  </AnnouncementItem>
+                ))
+              ) : (
+                <p>There are no announcements at this time.</p>
+              )}
+            </ListContainer>
+
+            {totalPages > 1 && (
+              <PaginationControls>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </PaginationControls>
+            )}
+          </>
         )}
       </MainSection>
     </Page>

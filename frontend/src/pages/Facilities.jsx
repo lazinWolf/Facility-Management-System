@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import styled from 'styled-components';
 
-// --- Styled Components (No changes here) ---
+// --- Styled Components ---
 
 const Page = styled.div`
   display: flex;
@@ -82,6 +82,7 @@ const FacilityGrid = styled.div`
   gap: 16px;
   overflow-y: auto;
   padding: 4px;
+  flex: 1;
 `;
 
 const FacilityCard = styled.div`
@@ -108,6 +109,7 @@ const DatePicker = styled.input`
   font-size: 14px;
   margin-bottom: 20px;
   width: 100%;
+  box-sizing: border-box;
 `;
 
 const SlotGrid = styled.div`
@@ -156,6 +158,39 @@ const BookingItem = styled.div`
   font-size: 14px;
 `;
 
+// Added missing Label and PaginationControls components
+const Label = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #1e1e2f;
+`;
+
+const PaginationControls = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: auto; /* Pushes to the bottom */
+  padding-top: 16px;
+  border-top: 1px solid #e9e4f0;
+  
+  button {
+    background-color: #e9e4f0;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: 600;
+
+    &:disabled {
+      background-color: #f5f5f5;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+  }
+`;
+
 
 // --- Main Component ---
 export default function Facilities() {
@@ -168,6 +203,10 @@ export default function Facilities() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
+  // --- NEW: State for facility pagination ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const TIME_SLOTS = [
       { value: 'S_09_10', label: '09:00-10:00' },
       { value: 'S_10_11', label: '10:00-11:00' },
@@ -176,17 +215,29 @@ export default function Facilities() {
       { value: 'S_15_16', label: '15:00-16:00' },
   ];
 
+  // --- UPDATED: useEffect to handle paginated facilities ---
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         const [facilitiesRes, bookingsRes] = await Promise.all([
-          API.get('/facilities'),
+          API.get(`/facilities?page=${currentPage}`), // Fetch current page
           API.get('/bookings/mine')
         ]);
-        // CONFIRMED FIX: Access the list via facilitiesRes.data.data
-        setFacilities(facilitiesRes.data.data);
-        setMyBookings(bookingsRes.data);
+        
+        // Handle paginated facilities response
+        if (facilitiesRes.data && Array.isArray(facilitiesRes.data.data)) {
+            setFacilities(facilitiesRes.data.data);
+            setTotalPages(facilitiesRes.data.totalPages);
+        } else {
+            setFacilities([]);
+        }
+
+        // Handle my bookings response (assuming it's not paginated)
+        if (bookingsRes.data && Array.isArray(bookingsRes.data)) {
+            setMyBookings(bookingsRes.data);
+        }
+
       } catch (err) {
         console.error("Failed to load data:", err);
       } finally {
@@ -197,7 +248,7 @@ export default function Facilities() {
     const timer = setInterval(() => setTime(new Date()), 60000);
     loadData();
     return () => clearInterval(timer);
-  }, []);
+  }, [currentPage]); // Re-run when currentPage changes
 
   const handleCreateBooking = async (slotValue) => {
     try {
@@ -253,38 +304,57 @@ export default function Facilities() {
            
            {selectedFacility ? (
              <div>
-                <button onClick={() => setSelectedFacility(null)} style={{marginBottom: '16px'}}>← Back to all facilities</button>
-                <p>{selectedFacility.description}</p>
-                <hr />
-                <Label>2. Select a Date</Label>
-                <DatePicker type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
-                
-                <Label>3. Select a Time Slot</Label>
-                <SlotGrid>
-                    {TIME_SLOTS.map(slot => {
-                        const { status, disabled, styles } = getSlotStatus(slot.value);
-                        return (
-                            <SlotButton 
-                                key={slot.value}
-                                disabled={disabled}
-                                onClick={() => handleCreateBooking(slot.value)}
-                                {...styles}
-                            >
-                                {slot.label} ({status})
-                            </SlotButton>
-                        )
-                    })}
-                </SlotGrid>
+               <button onClick={() => setSelectedFacility(null)} style={{marginBottom: '16px'}}>← Back to all facilities</button>
+               <p>{selectedFacility.description}</p>
+               <hr />
+               <Label>2. Select a Date</Label>
+               <DatePicker type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+               
+               <Label>3. Select a Time Slot</Label>
+               <SlotGrid>
+                   {TIME_SLOTS.map(slot => {
+                       const { status, disabled, styles } = getSlotStatus(slot.value);
+                       return (
+                           <SlotButton 
+                               key={slot.value}
+                               disabled={disabled}
+                               onClick={() => handleCreateBooking(slot.value)}
+                               {...styles}
+                           >
+                               {slot.label} ({status})
+                           </SlotButton>
+                       )
+                   })}
+               </SlotGrid>
              </div>
            ) : (
-            <FacilityGrid>
-                {loading ? <p>Loading facilities...</p> : (facilities && facilities.map(f => (
+            <>
+             <FacilityGrid>
+                {loading ? <p>Loading facilities...</p> : (facilities.map(f => (
                     <FacilityCard key={f.id} onClick={() => setSelectedFacility(f)}>
                         <h3>{f.name}</h3>
                         <p>Capacity per slot: {f.capacity}</p>
                     </FacilityCard>
                 )))}
-            </FacilityGrid>
+             </FacilityGrid>
+             {totalPages > 1 && (
+                <PaginationControls>
+                    <button
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </button>
+                    <span>Page {currentPage} of {totalPages}</span>
+                    <button
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </button>
+                </PaginationControls>
+             )}
+            </>
            )}
         </BookingContainer>
 
@@ -304,10 +374,3 @@ export default function Facilities() {
     </Page>
   );
 }
-
-const Label = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #1e1e2f;
-`;
